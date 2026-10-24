@@ -9,6 +9,8 @@
 [![content-policy](https://github.com/revisualize/mount-audit-reporter/actions/workflows/content-policy.yml/badge.svg)](https://github.com/revisualize/mount-audit-reporter/actions/workflows/content-policy.yml)
 [![license: all rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey)](LICENSE)
 
+**Project page:** [revisualized.com/projects/mount-audit-reporter](https://revisualized.com/projects/mount-audit-reporter)
+
 A Bash auditor that compares the mounts visible in its current Linux mount namespace with a manifest you review: each declared mountpoint, its filesystem type, its source, the options that must be present, and the options that must never appear. It reports every mismatch in one run with one exit code, and it reads mount state without ever changing it.
 
 A nightly comparison with yesterday can say what changed. This answers a different question: does the mount table match the contract someone wrote down? A wrong state is still wrong if it was already there when a baseline was accepted.
