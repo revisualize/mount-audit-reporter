@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# Path:     test/shim/findmnt
+# Project:  mount-audit-reporter
+# Revision: 4
+# Updated:  2026-10-19
+# Purpose:  A stand-in for findmnt that the bats suite puts first on PATH,
+#           so every finding type can be produced without root and without
+#           real NFS or SMB mounts. It reads a fixture mount table from the
+#           file named in FINDMNT_FIXTURE, one mount per line:
+#
+#               <target> <fstype> <options> [source]
+#
+#           Lines are in mount order, oldest first. Each line gets an ID
+#           (100 plus its line number) and a PARENT worked out the way the
+#           kernel does it: the mount a process would reach at that path at
+#           the moment of mounting. Starting from a root of ID 1 at /, the
+#           walk steps into the newest child whose target is the path or a
+#           directory above it, until there is none. A line on a target
+#           already mounted therefore gets that mount as its parent, and a
+#           later mount over a directory above an existing mount hides it.
+#           FINDMNT_REVERSE=1 prints the rows newest first, to prove the
+#           script does not depend on the order.
+#
+#           It implements only what mount_audit_reporter.sh uses:
+#           --noheadings, --raw, and --output with ID, PARENT, TARGET,
+#           FSTYPE, OPTIONS, and SOURCE. It always lists the whole table.
+set -u;
+
+if [ -z "${FINDMNT_FIXTURE:-}" ] || [ ! -r "${FINDMNT_FIXTURE}" ]; then
+    echo "findmnt shim: FINDMNT_FIXTURE is not set to a readable file" >&2;
+    exit 2;
+fi;
+
+output_columns="TARGET,FSTYPE,OPTIONS";
+
+while [ "$#" -gt 0 ]; do
+    case "${1}" in
+        --noheadings|--raw) shift ;;
+        --output) output_columns="${2}"; shift 2 ;;
+        *) echo "findmnt shim: unsupported argument ${1}" >&2; exit 2 ;;
+    esac;
+done;
+
+covers() {
+    [ "${1}" = "${2}" ] || [ "${1}" = "/" ] || [[ "${2}" == "${1}/"* ]];
+};
+
+declare -a known_ids=();
+declare -A known_parent=();
+declare -A known_target=();
+
+# resolve_parent <path>: the mount a process reaches at <path> right now.
+resolve_parent() {
+    local wanted_path="${1}";
+    local current_id=1;
+    local child_id next_id;
+    while :; do
+        next_id="";
+        for child_id in "${known_ids[@]}"; do
+            [ "${known_parent[${child_id}]}" = "${current_id}" ] || continue;
+            covers "${known_target[${child_id}]}" "${wanted_path}" && next_id="${child_id}";
+        done;
+        [ -z "${next_id}" ] && break;
+        current_id="${next_id}";
+    done;
+    printf '%s' "${current_id}";
+};
+
+line_number=0;
+matched_lines=();
+while read -r fixture_target fixture_fstype fixture_options fixture_source; do
+    [ -z "${fixture_target}" ] && continue;
+    line_number=$((line_number + 1));
+    fixture_id=$((100 + line_number));
+    if [ "${#known_ids[@]}" -gt 0 ]; then
+        fixture_parent="$(resolve_parent "${fixture_target}")";
+    else
+        fixture_parent=1;
+    fi;
+    known_ids+=("${fixture_id}");
+    known_parent["${fixture_id}"]="${fixture_parent}";
+    known_target["${fixture_id}"]="${fixture_target}";
+    output_line="";
+    IFS=',' read -r -a column_names <<< "${output_columns}";
+    for column_name in "${column_names[@]}"; do
+        case "${column_name}" in
+            ID)      column_value="${fixture_id}" ;;
+            PARENT)  column_value="${fixture_parent}" ;;
+            TARGET)  column_value="${fixture_target}" ;;
+            FSTYPE)  column_value="${fixture_fstype}" ;;
+            OPTIONS) column_value="${fixture_options}" ;;
+            SOURCE)  column_value="${fixture_source}" ;;
+            *) echo "findmnt shim: unsupported column ${column_name}" >&2; exit 2 ;;
+        esac;
+        output_line="${output_line:+${output_line} }${column_value}";
+    done;
+    matched_lines+=("${output_line}");
+done < "${FINDMNT_FIXTURE}";
+
+if [ "${FINDMNT_REVERSE:-0}" = "1" ]; then
+    for (( line_index = ${#matched_lines[@]} - 1; line_index >= 0; line_index-- )); do
+        printf '%s\n' "${matched_lines[${line_index}]}";
+    done;
+elif [ "${#matched_lines[@]}" -gt 0 ]; then
+    printf '%s\n' "${matched_lines[@]}";
+fi;
+
+[ "${#matched_lines[@]}" -gt 0 ] || exit 1;
+exit 0;

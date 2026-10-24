@@ -1,0 +1,30 @@
+# client_mounts.manifest
+#
+# One mount per line. Columns are separated by spaces or tabs.
+# <mountpoint>  <fstype>  <required_csv>  [forbidden_csv]  [source]
+#
+# Use - in an option column for "none", and - in the source column for
+# "do not check". A missing forbidden column means -; to give a source,
+# give the forbidden column too.
+#
+# Options and sources are matched exactly, written the way findmnt
+# reports them, so start from the output of --generate on a host you
+# know is right, not from memory. The NFS and SMB lines below are
+# illustrative, written from nfs(5) and mount.cifs(8), not generated.
+
+# Local build scratch: never executable, no device files, no setuid.
+/var/tmp/build  tmpfs  nodev,noexec,nosuid       -
+
+# Project data. Require hard rather than forbidding soft: softerr is a
+# second alternative to hard, and a soft-only rule would not see it.
+# The source is pinned: the same options pointed at another server or
+# export is a different mount. An NFSv4 mount reports the type nfs4.
+/mnt/projects   nfs4   hard,vers=4.1,proto=tcp   -    filer01.example.net:/export/projects
+
+# Scratch space is soft on purpose: it is disposable, and a hung client
+# costs more than a lost scratch file.
+/mnt/scratch    nfs4   soft                      -    -
+
+# Backups are mounted read-only on this client: require ro, and forbid
+# rw so the finding names the state to fix.
+/data/backups   cifs   ro                        rw   //backup01.example.net/archive
