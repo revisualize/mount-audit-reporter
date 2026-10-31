@@ -1,0 +1,94 @@
+== Samba install
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+samba: Version 4.23.6-Ubuntu-4.23.6+dfsg-1ubuntu2.2
+== Share
+created system user labsmb
+added [archive] to /etc/samba/smb.conf
+samba password set for labsmb
+smbd: active
+-- share as smbd sees it:
+
+[archive]
+	hosts allow = 192.168.77.
+	path = /srv/smb/archive
+	read only = No
+	valid users = labsmb
+== Client environment
+date: 2026-10-28 10:47:55 -0700
+hostname: lab-nfs-client
+kernel: 7.0.0-42-generic
+findmnt: findmnt from util-linux 2.41.3
+== cifs-utils
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+mount.cifs: mount.cifs version: 7.4
+== Repository
+script sha256: 2778d1c629cb (released: 2778d1c629cb)
+== Real SMB mounts from //192.168.77.10/archive
+  -- nothing mounted yet
+     manifest: /mnt/lab/archive cifs ro rw //192.168.77.10/archive
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+       - /mnt/lab/archive: not mounted
+     exit 1, page predicts 1: MATCH
+-- mount -t cifs -o vers=3.1.1,ro
+   findmnt: cifs //192.168.77.10/archive ro,relatime,vers=3.1.1,cache=strict,upcall_target=app,username=labsmb,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.77.10,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,reparse=nfs,nativesocket,symlink=native,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+   generate prints: /mnt/lab/archive  cifs  ro,relatime,vers=3.1.1,cache=strict,upcall_target=app,username=labsmb,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.77.10,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,reparse=nfs,nativesocket,symlink=native,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1  -  //192.168.77.10/archive
+   password in findmnt options: no
+   username in findmnt options: yes
+  -- page example contract: cifs, require ro, forbid rw
+     manifest: /mnt/lab/archive cifs ro rw //192.168.77.10/archive
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+     exit 0, page predicts 0: MATCH
+  -- manifest names a different share
+     manifest: /mnt/lab/archive cifs ro rw //192.168.77.10/other
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+       - /mnt/lab/archive: source is //192.168.77.10/archive, expected //192.168.77.10/other
+     exit 1, page predicts 1: MATCH
+  -- manifest requires vers=3.1.1
+     manifest: /mnt/lab/archive cifs vers=3.1.1 - //192.168.77.10/archive
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+     exit 0: OBSERVED (the page makes no prediction here)
+-- mount -t cifs -o vers=3.1.1,rw
+   findmnt: cifs //192.168.77.10/archive rw,relatime,vers=3.1.1,cache=strict,upcall_target=app,username=labsmb,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.77.10,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,reparse=nfs,nativesocket,symlink=native,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+   generate prints: /mnt/lab/archive  cifs  rw,relatime,vers=3.1.1,cache=strict,upcall_target=app,username=labsmb,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.77.10,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,reparse=nfs,nativesocket,symlink=native,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1  -  //192.168.77.10/archive
+   password in findmnt options: no
+   username in findmnt options: yes
+  -- page example contract against a read-write mount
+     manifest: /mnt/lab/archive cifs ro rw //192.168.77.10/archive
+     MOUNT AUDIT: 2 finding(s) across 1 mount(s) (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+       - /mnt/lab/archive: required option missing: ro
+       - /mnt/lab/archive: forbidden option present: rw
+     exit 1, page predicts 1: MATCH
+-- mount -t smb3 -o ro (which filesystem type does findmnt report?)
+   findmnt: smb3 //192.168.77.10/archive ro,relatime,vers=3.1.1,cache=strict,upcall_target=app,username=labsmb,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.77.10,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,reparse=nfs,nativesocket,symlink=native,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+   generate prints: /mnt/lab/archive  smb3  ro,relatime,vers=3.1.1,cache=strict,upcall_target=app,username=labsmb,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.77.10,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,reparse=nfs,nativesocket,symlink=native,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1  -  //192.168.77.10/archive
+   password in findmnt options: no
+   username in findmnt options: yes
+  -- page example contract (type cifs) against a -t smb3 mount
+     manifest: /mnt/lab/archive cifs ro rw //192.168.77.10/archive
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+       - /mnt/lab/archive: fstype is smb3, expected cifs
+     exit 1: OBSERVED (the page makes no prediction here)
+  -- same contract written with type smb3
+     manifest: /mnt/lab/archive smb3 ro rw //192.168.77.10/archive
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_smb_run.wWc1fO/check.manifest)
+     exit 0: OBSERVED (the page makes no prediction here)
+== SUMMARY: 7 audits run, 0 differed from the page, failed to mount, or exposed the password
+date: 2026-10-28 10:48:07 -0700

@@ -1,0 +1,100 @@
+== Client environment
+date: 2026-10-28 10:39:02 -0700
+hostname: lab-nfs-client
+os: Ubuntu 26.04.1 LTS
+kernel: 7.0.0-42-generic
+findmnt: findmnt from util-linux 2.41.3
+bash: 5.3.9(1)-release
+bats: Bats 1.13.0
+chronic: /usr/bin/chronic
+git: git version 2.53.0
+-- shares offered by 192.168.77.10:
+Export list for 192.168.77.10:
+/srv/nfs/scratch  192.168.77.0/24
+/srv/nfs/projects 192.168.77.0/24
+== Repository
+commit: 020992b 2026-10-24 11:08:07 -0700 Fixing links.
+script sha256: 2778d1c629cb (the released Revision 14)
+== Test suite on this VM
+suite exit: 0
+tests passed: 84, failed: 0
+  executed: bats test/: 84
+== Real NFS mounts from 192.168.77.10:/srv/nfs/projects
+  -- nothing mounted yet
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: not mounted
+     exit 1, page predicts 1: MATCH
+-- mode: default (mount -o none given)
+   findmnt: nfs4 192.168.77.10:/srv/nfs/projects rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,hard,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10
+   generate prints: /mnt/lab/projects  nfs4  rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,hard,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10  -  192.168.77.10:/srv/nfs/projects
+  -- require hard (default)
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_run.L42CDC/check.manifest)
+     exit 0, page predicts 0: MATCH
+  -- forbid soft (default)
+     manifest: /mnt/lab/projects nfs4 - soft 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_run.L42CDC/check.manifest)
+     exit 0, page predicts 0: MATCH
+-- mode: hard (mount -o hard)
+   findmnt: nfs4 192.168.77.10:/srv/nfs/projects rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,hard,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10
+   generate prints: /mnt/lab/projects  nfs4  rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,hard,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10  -  192.168.77.10:/srv/nfs/projects
+  -- require hard (hard)
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_run.L42CDC/check.manifest)
+     exit 0, page predicts 0: MATCH
+  -- forbid soft (hard)
+     manifest: /mnt/lab/projects nfs4 - soft 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_run.L42CDC/check.manifest)
+     exit 0, page predicts 0: MATCH
+-- mode: soft (mount -o soft)
+   findmnt: nfs4 192.168.77.10:/srv/nfs/projects rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,soft,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10
+   generate prints: /mnt/lab/projects  nfs4  rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,soft,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10  -  192.168.77.10:/srv/nfs/projects
+  -- require hard (soft)
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: required option missing: hard
+     exit 1, page predicts 1: MATCH
+  -- forbid soft (soft)
+     manifest: /mnt/lab/projects nfs4 - soft 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: forbidden option present: soft
+     exit 1, page predicts 1: MATCH
+-- mode: softerr (mount -o softerr)
+   findmnt: nfs4 192.168.77.10:/srv/nfs/projects rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,softerr,softreval,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10
+   generate prints: /mnt/lab/projects  nfs4  rw,relatime,vers=4.2,rsize=524288,wsize=524288,namlen=255,softerr,softreval,fatal_neterrors=none,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.77.20,local_lock=none,addr=192.168.77.10  -  192.168.77.10:/srv/nfs/projects
+  -- require hard (softerr)
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: required option missing: hard
+     exit 1, page predicts 1: MATCH
+  -- forbid soft (softerr)
+     manifest: /mnt/lab/projects nfs4 - soft 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_run.L42CDC/check.manifest)
+     exit 0, page predicts 0: MATCH
+-- wrong source, stacked mount, hidden mount (NFS mounted hard underneath)
+  -- manifest names a different server
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.99:/srv/nfs/projects
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: source is 192.168.77.10:/srv/nfs/projects, expected 192.168.77.99:/srv/nfs/projects
+     exit 1, page predicts 1: MATCH
+  -- tmpfs stacked on top of the NFS mount
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT: 3 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: fstype is tmpfs, expected nfs4
+       - /mnt/lab/projects: source is lab_stack, expected 192.168.77.10:/srv/nfs/projects
+       - /mnt/lab/projects: required option missing: hard
+       note: /mnt/lab/projects: 2 mounts stacked; audited the visible one
+     exit 1, page predicts 1: MATCH
+  -- tmpfs over /mnt/lab hides the NFS mount
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT: 1 finding(s) across 1 mount(s) (/home/lab/r002_run.L42CDC/check.manifest)
+       - /mnt/lab/projects: hidden: a later mount at /mnt/lab covers it
+     exit 1, page predicts 1: MATCH
+  -- NFS mount visible again
+     manifest: /mnt/lab/projects nfs4 hard - 192.168.77.10:/srv/nfs/projects
+     MOUNT AUDIT OK: 1 mount(s) match expectations (/home/lab/r002_run.L42CDC/check.manifest)
+     exit 0, page predicts 0: MATCH
+== SUMMARY: 13 audits run, 0 differed from the page or failed to mount
+suite: exit 0; log kept at /home/lab/r002_run.L42CDC/suite.log
+date: 2026-10-28 10:39:14 -0700
