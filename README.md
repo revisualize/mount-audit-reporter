@@ -22,7 +22,9 @@ bash mount_audit_reporter.sh --generate > client_mounts.manifest
 bash mount_audit_reporter.sh client_mounts.manifest
 ```
 
-Generate mode prints a candidate manifest from the mounts this host has now. It lists every option `findmnt` reports as required, so edit it before relying on it: delete options you hold no expectation about, especially ones that change by themselves on network mounts (`addr=`, `clientaddr=`, negotiated `rsize` and `wsize`), and add the options that must never appear. A generated manifest records what the host is doing; it becomes a statement of intent only after a person has edited it.
+Generate mode prints a candidate manifest from the mounts this host has now. It lists every option `findmnt` reports as required, so edit it before relying on it: delete options you hold no expectation about, especially ones that change by themselves on network mounts (`addr=`, `clientaddr=`, negotiated `rsize` and `wsize`), and add the options that must never appear. Expect many: in the lab runs under Evidence, an NFS mount listed 15 options, including `fatal_neterrors=none`, which nobody typed, and an SMB mount listed 26 for a command that named three. A generated manifest records what the host is doing; it becomes a statement of intent only after a person has edited it.
+
+For an SMB mount, the option string includes `username=`, so a generated manifest names the account the share was mounted as. The password never appeared in any of the lab's SMB option strings. Review a generated manifest before you commit it anywhere shared.
 
 To run it nightly, put a time limit on it and let cron mail only a failed run. `timeout` is from coreutils; `chronic` is from moreutils and prints a command's output only when it exits non-zero. Keep its `-v` flag: an audit that `timeout` stops has printed nothing yet, and `-v` adds the exit status, so even that run produces mail.
 
@@ -41,7 +43,7 @@ A `RETVAL: 124` in that mail means the audit hit the time limit; 137 means it wa
 /data/backups   cifs   ro                        rw   //backup01.example.net/archive
 ```
 
-One mount per line, columns separated by spaces or tabs. A `#` at the start of a line or after whitespace starts a comment; inside a value, such as `server#A`, it is ordinary text. Use `-` in an option column for none, and in the source column to skip the source check. A missing forbidden column means `-`; to give a source, give the forbidden column too. The NFS and SMB lines above are illustrative, written from nfs(5) and mount.cifs(8) rather than from a generate run; see Evidence below. The full example is `examples/client_mounts.manifest`.
+One mount per line, columns separated by spaces or tabs. A `#` at the start of a line or after whitespace starts a comment; inside a value, such as `server#A`, it is ordinary text. Use `-` in an option column for none, and in the source column to skip the source check. A missing forbidden column means `-`; to give a source, give the forbidden column too. The server names in the NFS and SMB lines above are illustrative. Lines of the same shape were audited against real NFS and SMB mounts in a lab on 2026-10-28; see Evidence below. The full example is `examples/client_mounts.manifest`.
 
 A mountpoint is matched exactly as the mount table spells it. A trailing slash is ignored, but a symlink is never followed: write `/run`, not `/var/run`.
 
@@ -57,7 +59,13 @@ Options are matched as whole tokens against the option string `findmnt` returns 
 
 ### NFS: prefer requiring the safe option
 
-nfs(5) documents three recovery modes: `hard`, `soft`, and `softerr`. A rule that forbids `soft` misses `softerr`. In Linux 6.18, the NFS client writes `hard` into the option string whenever neither of the others is set ([fs/nfs/super.c, lines 484 and 485 at v6.18](https://github.com/torvalds/linux/blob/v6.18/fs/nfs/super.c#L484-L485)), so on such a kernel requiring `hard` catches both. No NFS mount has been audited with this tool yet, so confirm with generate mode on your host.
+nfs(5) documents three recovery modes: `hard`, `soft`, and `softerr`. A rule that forbids `soft` misses `softerr`. In Linux 6.18, the NFS client writes `hard` into the option string whenever neither of the others is set ([fs/nfs/super.c, lines 484 and 485 at v6.18](https://github.com/torvalds/linux/blob/v6.18/fs/nfs/super.c#L484-L485)), so on such a kernel requiring `hard` catches both. The lab runs under Evidence show the same on a Linux 7.0.0 client: a mount given no recovery option reported `hard`, and a `softerr` mount passed a manifest that forbids `soft` and failed one that requires `hard`. Kernels can change what they report, so confirm with generate mode on your own host.
+
+### SMB: two type names, and soft by default
+
+A share mounted with `-t cifs` reports the filesystem type `cifs`; mounted with `-t smb3`, it reports `smb3`. The two are compared as different strings, so a `cifs` manifest line audited against an `smb3` mount reports `fstype is smb3, expected cifs`. Write the type generate mode prints.
+
+mount.cifs(8) documents `soft` as the default for CIFS, and every lab SMB mount reported `soft` without being asked for it. The NFS advice above stops at NFS: those option strings carry `soft` and no `hard`, so a manifest that requires `hard` would report it missing on an SMB mount made without the `hard` option. Every lab SMB mount was made without `hard`, so generate on a host that uses it before you rely on how it reads back.
 
 ## What it reports
 
@@ -84,7 +92,7 @@ The same page adds a condition: that mount is reachable only if no later mount c
 
 A malformed manifest stops the run before anything is audited. The script rejects a line with a carriage return, fewer than three or more than five columns, a relative mountpoint, an empty option between commas, a `-` mixed into an option list, a mountpoint declared twice, a mountpoint containing a backslash, or an option both required and forbidden. A manifest that declares nothing exits 2: an audit that checked nothing never reports success.
 
-Each run reads the whole mount table with one `findmnt` call that names its columns, so every mount is judged against the same listing and a missing mount is a path with no row. The listing is not an atomic snapshot: the kernel releases its lock between reads, so a mount or unmount made while `findmnt` reads can show in it partly. Any non-zero exit from that call, a row the script cannot parse (a non-numeric ID, a target without a leading slash, a missing or extra column), parent IDs that form a loop, or more than one mount that is its own parent stops the run with exit 2 and an `ERROR` line. When the table cannot say which of several mounts at one path is visible, the other mounts are still audited: the run prints `MOUNT AUDIT INCOMPLETE` with their findings and an `ERROR` line for that path, and exits 2.
+Each run reads the whole mount table with one `findmnt` call that names its columns, so every mount is judged against the same listing and a missing mount is a path with no row. One listing can still be inconsistent with itself: the kernel releases its lock between reads, so a mount or unmount made while `findmnt` reads can show in it partly. Any non-zero exit from that call, a row the script cannot parse (a non-numeric ID, a target without a leading slash, a missing or extra column), parent IDs that form a loop, or more than one mount that is its own parent stops the run with exit 2 and an `ERROR` line. When the table cannot say which of several mounts at one path is visible, the other mounts are still audited: the run prints `MOUNT AUDIT INCOMPLETE` with their findings and an `ERROR` line for that path, and exits 2.
 
 `findmnt`'s error output goes to a temporary file made by `mktemp` under `TMPDIR` (default `/tmp`). It is removed as soon as `findmnt` exits, and a trap removes it if the run is interrupted. A `SIGKILL`, such as the one `timeout --kill-after` sends, cannot be trapped and can leave it behind.
 
@@ -98,13 +106,17 @@ Each run reads the whole mount table with one `findmnt` call that names its colu
 - Mountpoints are matched as the table spells them, so a path reached through a symlink, such as `/var/run`, reads as not mounted.
 - Run time grows with the size of the mount table, slowly. Measured on a synthetic table of 1,000 mounts: an audit of 20 declared mounts took about 0.15 seconds and generate mode about half a second; at 2,000 mounts, about 0.3 and 1.2 seconds. Each lookup reads only the mounts at the path and the directories above it.
 - Exact tokens age with the kernel: an upgrade that changes how options are reported produces findings until the manifest is regenerated and reviewed.
-- Tested on util-linux 2.39 and 2.41. The script needs only a full listing with the ID, PARENT, TARGET, FSTYPE, OPTIONS, and SOURCE columns; a `findmnt` that rejects any of them makes the run stop with exit 2.
+- Tested on util-linux 2.39 and 2.41 (2.41.3 in the NFS and SMB lab runs). The script needs only a full listing with the ID, PARENT, TARGET, FSTYPE, OPTIONS, and SOURCE columns; a `findmnt` that rejects any of them makes the run stop with exit 2.
 
 ## Evidence
 
 The bats suite runs against `test/shim/findmnt`, a stand-in that reads a fixture mount table and assigns parent IDs the way the kernel does, so every finding type, stacked mounts in either print order, mounts hidden by a later mount above them, every manifest error, failing `findmnt` runs, and generate mode are tested without root or real NFS and SMB servers. Stand-ins for `mount` and `umount` first on `PATH` prove neither is ever called, and a scratch `TMPDIR` shows no temporary file left behind on the normal and failing paths. As a check on the tests themselves, 63 deliberate defects were put back into a copy of the script one at a time; the suite failed for every one.
 
-The suite has passed under Bash 4.2 through 5.3. The bash-compat workflow builds each of those releases from source; the lab runs also used the workstation's own Bash 5.3. The script has run against real mount tables: ext4, tmpfs, and 9p mounts on a WSL2 workstation, including a path stacked by the system, and tmpfs mounts arranged for the test, both stacked on one path and hidden by a later mount above them, on that workstation (util-linux 2.41) and in a disposable test environment (2.39). No NFS or SMB mount has been audited, and it has not been run under sustained scheduling.
+The suite has passed under Bash 4.2 through 5.3. The bash-compat workflow builds each of those releases from source; the lab runs also used the workstation's own Bash 5.3. The script has run against real mount tables: ext4, tmpfs, and 9p mounts on a WSL2 workstation, including a path stacked by the system, and tmpfs mounts arranged for the test, both stacked on one path and hidden by a later mount above them, on that workstation (util-linux 2.41) and in a disposable test environment (2.39).
+
+On 2026-10-28 the released script ran on a lab client against a real NFS server and a real Samba server, disposable virtual machines on a private network with Ubuntu Server 26.04.1, Linux 7.0.0-42, and util-linux 2.41.3. The suite passed there too, 84 of 84. Of 20 real-mount audits, 17 had their exit code written down in advance from this README and the project page, and all 17 matched: NFS mounted with no recovery option, `hard`, `soft`, and `softerr`; a wrong server or share; a tmpfs stacked on an NFS mount; an NFS mount hidden by a later mount above it; and the README's read-only SMB example against read-only and read-write mounts. The other 3 recorded how an SMB mount reads back. The transcripts, a summary, and the scripts that produced them are in [evidence/](evidence/lab_runs_2026-10-28.md).
+
+Not yet shown: a server that goes away during a run, a Windows file server, and sustained scheduled operation.
 
 ## Requirements
 
@@ -120,8 +132,8 @@ Each badge above is its own GitHub Actions workflow in `.github/workflows/`. Eve
 
 | Workflow | A green badge means |
 |---|---|
-| [`ci`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/ci.yml) | `bash test/run_all_tests.sh` passed on Python 3.9 and 3.12 and reported a non-zero count of executed tests, and shellcheck found nothing at style severity. |
-| [`test`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/test.yml) | `bash test/run_all_tests.sh` passed on Python 3.9 and 3.12. The run fails if any suite fails or if zero tests executed, and the job summary lists each suite with its test count. |
+| [`ci`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/ci.yml) | `bash test/run_all_tests.sh` passed in both jobs of the shared workflow matrix (Python 3.9 and 3.12; this tool itself uses no Python) and reported a non-zero count of executed tests, and shellcheck found nothing at style severity. |
+| [`test`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/test.yml) | `bash test/run_all_tests.sh` passed in both jobs of the shared workflow matrix (Python 3.9 and 3.12; this tool itself uses no Python). The run fails if any suite fails or if zero tests executed, and the job summary lists each suite with its test count. |
 | [`shellcheck`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/shellcheck.yml) | Every shell script outside `test/fixtures/` parses with `bash -n` and has no shellcheck findings at style severity. |
 | [`bash-compat`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/bash-compat.yml) | The test suite passed under every Bash release from the floor stated in Requirements through 5.3, each built from its release source. |
 | [`markdown-lint`](https://github.com/revisualize/mount-audit-reporter/actions/workflows/markdown-lint.yml) | Every Markdown file passes markdownlint. |
